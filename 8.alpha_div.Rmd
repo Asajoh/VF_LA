@@ -1,0 +1,124 @@
+---
+title: "Alpha diversity"
+output: 
+  pdf_document: 
+    keep_tex: yes
+---
+
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE, eval=FALSE, tidy.opts=list(width.cutoff=20), tidy=TRUE, wrap=TRUE)
+
+```
+
+Plots and statistics for alpha-diversity.
+
+Joint data frame for metadata and alpha diversity.
+```{r}
+VFLA_alpha_data <-metadata %>% 
+  left_join(VFLA_shannon, by=c("SampleID"="SampleID")) %>%
+  left_join(VFLA_faith_pd, by=c("SampleID"="SampleID")) %>% 
+  mutate(Ring = factor(
+      Ring, 
+      levels = c("Ring_1", "Ring_3", "Ring_8", "Ring_4", "Ring_7", "Ring_12"),
+      labels = c("Pen 1", "Pen 3", "Pen 8", "Pen 4", "Pen 7", "Pen 12")
+    ),
+        Type = factor(Type, levels = c("Plastic", "Seaweed", "Skin", "Gills")))%>% 
+  filter(Shelter != "Growth")
+```
+
+
+Alpha diversity split by cages and sample type with facet on shelter type
+```{r}
+
+faith_pd_plot<-ggplot(VFLA_alpha_data, aes(x = Ring, y = faith_pd, fill = Type))+
+  geom_boxplot()+
+  xlab("Pen number")+
+  ylab("Faith's PD")+
+  scale_fill_brewer(palette = "Paired") +
+  facet_wrap(~Shelter1, scales = "free_x", dir = "h", ncol = 2) +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+
+shannon_plot<-ggplot(VFLA_alpha_data, aes(x = Ring, y = shannon_entropy, fill = Type))+
+  geom_boxplot()+
+  xlab("Pen number")+
+  ylab("Shannon")+
+  scale_fill_brewer(palette = "Paired")+
+  facet_wrap(~Shelter1, scales = "free_x") +
+  theme_classic() +
+  theme(text = element_text(size = 13))
+  
+
+```
+
+Alpha diversity split by sample type and sampling time point with facet on shelter type
+```{r}
+shannon_all <- ggplot(VFLA_alpha_data, aes(x = Type1, y = shannon_entropy, fill = Cycle))+ 
+  geom_boxplot()+
+  facet_grid(Shelter1~.)+
+  scale_fill_brewer(palette = "OrRd")+
+  labs(x = "Type", y = "Shannon", fill = "Sampling point")+
+  theme_classic()+
+  theme(text = element_text(size = 13))
+
+pd_all <- ggplot(VFLA_alpha_data, aes(x = Type1, y = faith_pd, fill = Cycle))+ 
+  geom_boxplot()+
+  facet_grid(Shelter1~.)+
+  scale_fill_brewer(palette = "OrRd")+
+  labs(x = "Type", y = "Faith's PD", fill = "Sampling point")+
+  theme_classic()+
+  theme(text = element_text(size = 13))
+
+```
+
+```{r, fig.height=10, fig.width=12}
+ggarrange(shannon_plot, faith_pd_plot, shannon_all,pd_all,nrow = 2, ncol = 2, labels = c("a)","b)","c)","d)"))
+ggsave("alpha_diversity_plots.tiff",dpi=300)
+
+```
+
+
+Comparisons of sample types. Relevel is used to get a different base level, so that all comparisons can be made
+```{r}
+VFLA_alpha_data$Type <- relevel(factor(VFLA_alpha_data$Type),ref="Gills")
+VFLA_type_faithmod <-lmer(faith_pd~Type+(1|Ring),data=VFLA_alpha_data)
+summary(VFLA_type_faithmod)
+
+VFLA_type_shannonmod <-lmer(shannon_entropy~Type+(1|Ring),data=VFLA_alpha_data)
+summary(VFLA_type_shannonmod)
+
+```
+
+
+Gills and Skin in plastic and seaweed shelters
+```{r}
+VFLA_alpha_data$Shelter1 <- relevel(factor(VFLA_alpha_data$Shelter1),ref="Seaweed")
+
+VFLA_faithmod_shelter_gills <-lmer(faith_pd~Shelter1+(1|Ring),data=subset(VFLA_alpha_data, Type == "Gills"))
+summary(VFLA_faithmod_shelter_gills)
+
+VFLA_shannonmod_shelter_gills <-lmer(shannon_entropy~Shelter1+(1|Ring),data=subset(VFLA_alpha_data, Type == "Gills"))
+summary(VFLA_shannonmod_shelter_gills)
+
+VFLA_faithmod_shelter_skin <-lmer(faith_pd~Shelter1+(1|Ring),data=subset(VFLA_alpha_data, Type == "Skin"))
+summary(VFLA_faithmod_shelter_skin)
+
+VFLA_shannonmod_shelter_skin <-lmer(shannon_entropy~Shelter1+(1|Ring),data=subset(VFLA_alpha_data, Type == "Skin"))
+summary(VFLA_shannonmod_shelter_skin)
+
+```
+
+Change over time
+```{r}
+VFLA_alpha_data$Cycle <- relevel(factor(VFLA_alpha_data$Cycle),ref="A")
+
+VFLA_faithmod_time <-lmer(faith_pd~Cycle+(1|Type),data=VFLA_alpha_data)
+summary(VFLA_faithmod_time)
+
+VFLA_shannonmod_time <-lmer(shannon_entropy~Cycle+(1|Type),data=VFLA_alpha_data)
+summary(VFLA_shannonmod_time)
+
+```
+
+

@@ -1,0 +1,91 @@
+---
+title: "Packages and data"
+output: 
+  pdf_document: 
+    keep_tex: yes
+---
+
+This section is for opening packages and importing data.
+
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE, eval=FALSE, tidy.opts=list(width.cutoff=20), tidy=TRUE, wrap=TRUE)
+
+```
+
+
+Open packages. These are packages used for all R notebooks in this project. 
+
+```{r, message=FALSE}
+library(tidyverse)
+library(qiime2R)
+library(metacoder)
+library(lme4)
+library(lmerTest)
+library(corncob)
+library(RColorBrewer)
+library(ggpubr)
+library(vegan)
+library(ordinal)
+
+```
+
+
+Here, the sample metadata is imported. In order to stay within the tidyverse, some precautions have been made to ensure that the last line of the metadata file is read. In our data, the .tsv did not end with a newline character, so the last line was missing from the file. This issue can also be avoided by using "read.csv". The date column is formatted correctly, and some dummy variables are created for downstream analysis purposes.
+```{r, message=FALSE}
+plasticrings = c("Ring_1","Ring_3","Ring_8")
+
+file_content <- read_file("sample-metadata.tsv")
+
+if (!grepl("\\n$", file_content)) {
+  file_content <- paste0(file_content, "\n")
+}
+
+metadata <- read_tsv(file = I(file_content),col_select = c(1:7)) %>% 
+  mutate(Date = as.Date(as.character(Date),format="%Y%m%d"))%>%
+  mutate(Shelter1 = case_when(Ring %in% plasticrings ~ "Plastic",
+                           .default = "Seaweed")) %>% 
+  mutate(Type1 = ifelse(Type == "Plastic" | Type == "Seaweed", "Shelter", Type)) %>% 
+  mutate(Cycle1 = as.ordered(Cycle))%>% 
+  unite(treatments, c("Ring","Cycle","Shelter"), remove = FALSE)
+
+nogrometadata<-metadata %>% 
+  filter(Shelter != "Growth")
+
+```
+
+The raw data including taxonomy, rooted tree, and feature table.
+```{r}
+VFLA_taxonomy <-read_qza("VFLA_taxonomy.qza")$data
+VFLA_rooted_tree <-read_qza("VFLA-rooted-tree.qza")$data
+VFLA_table <-read_qza("VFLA-filtered-table.qza")$data
+```
+
+
+Create a taxmap object for use with trees and abundance plotting
+```{r}
+totaxmap_VFLA_rescript <- VFLA_table %>%
+  as.data.frame() %>%
+  rownames_to_column("Feature.ID") %>%
+  left_join(VFLA_taxonomy) %>% 
+  mutate(Feature=Taxon)
+
+totaxmap_VFLA_rescript$Taxon[totaxmap_VFLA_rescript$Taxon == "Unassigned"] <- "d__Unassigned"
+
+totaxmap_VFLA_rescript$Taxon <- sub(";s__$","",totaxmap_VFLA_rescript$Taxon)
+
+VFLA_rescript_parsed <-parse_tax_data(totaxmap_VFLA_rescript, class_cols="Taxon",class_sep=";",class_key=c(tax_rank="taxon_rank",tax_name="taxon_name"),class_regex = "(.+)__(.+)")
+```
+
+
+Alpha diversity metrics. The Faith phylogenetic diversity data needs a bit of reformatting.
+```{r,message=FALSE}
+VFLA_shannon <-read_qza("shannon_vector_tax.qza")$data %>% rownames_to_column("SampleID")
+VFLA_faith_pd <-read_qza("faith_pd_vector_tax.qza")$data 
+colnames(VFLA_faith_pd) <- c("SampleID", "faith_pd")
+```
+
+Beta diversity data.
+```{r}
+VFLA_bray_curtis <-read_qza("bray_curtis_pcoa_results_tax.qza")
+```

@@ -1,0 +1,79 @@
+---
+title: "PCoA"
+output: 
+  pdf_document: 
+    keep_tex: yes
+---
+
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE, eval=FALSE, tidy.opts=list(width.cutoff=20), tidy=TRUE, wrap=TRUE)
+
+```
+
+
+Here we make beta diversity PCoA plots. Make any character vectors in to factors for plotting purposes.
+```{r}
+metadata<-metadata %>% 
+  mutate(Ring = factor(Ring, 
+            levels = c("Ring_1", "Ring_3", "Ring_8", "Ring_4", "Ring_7", "Ring_12"),
+            labels = c("Pen 1", "Pen 3", "Pen 8", "Pen 4", "Pen 7", "Pen 12")
+                      ),
+         Type = factor(Type),
+         Shelter = factor(Shelter),
+         Cycle = factor(Cycle)
+         )
+
+```
+
+
+Bray-curtis PCoA plot.
+
+```{r,fig.height=6, fig.width=10}
+
+VFLA_bray_curtis$data$Vectors %>%
+  select(SampleID, PC1, PC2) %>%
+  left_join(metadata, by = c("SampleID" = "SampleID")) %>%
+  filter(Shelter1 != "Growth") %>%
+    ggplot(aes(x = PC1, y = PC2, color = Type)) +
+      geom_point(alpha = 0.7) +
+      theme_bw() +
+      theme(legend.position = "bottom", 
+            legend.margin = margin(t = -10),
+            panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank(),
+            panel.spacing = unit(0.8, "lines"),
+            text = element_text(size = 13))+
+      scale_color_manual(values = c("purple2", "springgreen3", "deepskyblue1", "gold")) +
+      facet_grid(Cycle ~ Ring + Shelter1) 
+  
+#  ggsave("PCoA_VFLA_braycurtis_ringcycle_b_v5.tiff", dpi = 300)
+
+```
+
+Distance matrix created in R rather than Qiime2
+
+```{r}
+VFLA_transposed <-t(VFLA_table)
+VFLA_bray <- vegdist(VFLA_transposed,method="bray")
+
+```
+
+
+```{r}
+metadata2<-metadata
+
+rownames(metadata2) <- metadata2$SampleID
+metadata2$SampleID <- NULL
+```
+
+```{r}
+permanova_result <- adonis2(
+  VFLA_bray ~ Shelter1+Cycle1+Type1,
+  data = metadata2, by="terms", permutations = 10000
+)
+```
+
+```{r}
+print(permanova_result)
+```

@@ -1,0 +1,124 @@
+---
+title: "Phylogenetic trees"
+output: 
+  pdf_document: 
+    keep_tex: yes
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE, eval=FALSE, tidy.opts=list(width.cutoff=20), tidy=TRUE, wrap=TRUE)
+
+```
+
+
+```{r}
+VFLA_rescript_parsed$data$tax_prop_data <- calc_obs_props(VFLA_rescript_parsed, "tax_data", cols = nogrometadata$SampleID)
+VFLA_rescript_parsed$data$tax_abund <- calc_taxon_abund(VFLA_rescript_parsed, "tax_prop_data",cols = nogrometadata$SampleID,groups = nogrometadata$Type)
+
+```
+
+Here we build a subtaxa tree. Empty nodes and specific taxa ranks are removed in order to make the tree readable and informative. Insert your summarized variable of choice.
+```{r}
+
+plastictree <- VFLA_rescript_parsed %>% 
+  filter_taxa(Plastic >0) %>%
+  filter_taxa(taxon_ranks == "o", supertaxa = TRUE) %>%
+  filter_taxa(taxon_names %in% c("Eukaryota","Archaea","Mitochondria","Cyanobacteria"),
+              subtaxa=TRUE,invert=TRUE) %>% 
+  heat_tree(node_label=taxon_names,
+            node_label_max = 30,
+            node_size=round(Plastic, digits = 4),
+            node_color=round(Plastic, digits = 4),
+            node_color_digits = 3,
+            node_size_digits = 3,
+            tree_label="Plastic shelters",
+            node_label_size_range=c(0.018,0.06),
+            node_size_range = c(0.007, 0.03),
+            node_color_axis_label = "Read proportions")
+
+```
+
+```{r}
+plastictree
+```
+
+
+```{r}
+seaweedtree <- VFLA_rescript_parsed %>% 
+  filter_taxa(taxon_ranks == "o", supertaxa = TRUE) %>%
+  filter_taxa(taxon_names %in% c("Eukaryota","Archaea","Mitochondria","Cyanobacteria"),
+              subtaxa=TRUE,invert=TRUE) %>% 
+  heat_tree(node_label=taxon_names,
+            node_label_max = 30,
+            node_size=round(Seaweed, digits = 4),
+            node_color=round(Seaweed, digits = 4),
+            node_color_digits = 3,
+            node_size_digits = 3,
+            tree_label="Seaweed shelters",
+            node_label_size_range=c(0.018,0.06), 
+            node_size_range = c(0.007, 0.03), 
+            node_color_axis_label = "Read proportions")
+          
+```
+
+```{r}
+seaweedtree
+```
+
+
+```{r}
+
+skintree <- VFLA_rescript_parsed %>% 
+  filter_taxa(Skin >0) %>%
+  filter_taxa(taxon_ranks == "o", supertaxa = TRUE) %>%
+  filter_taxa(taxon_names %in% c("Eukaryota","Archaea","Mitochondria","Cyanobacteria"),
+              subtaxa=TRUE,invert=TRUE) %>% 
+  heat_tree(node_label=taxon_names,
+            node_label_max = 30,
+            node_size=round(Skin, digits = 4),
+            node_color=round(Skin, digits = 4),
+            node_color_digits = 4,
+            node_size_digits = 4,
+            tree_label="Skin",
+            node_label_size_range=c(0.018,0.06), 
+            node_size_range = c(0.007, 0.03), 
+            node_color_axis_label = "Read proportions")
+
+```
+
+```{r}
+skintree
+```
+
+
+```{r}
+
+gilltree <- VFLA_rescript_parsed %>% 
+  filter_taxa(Gills >0) %>%
+  filter_taxa(taxon_ranks == "o", supertaxa = TRUE) %>%
+  filter_taxa(taxon_names %in% c("Eukaryota","Archaea","Mitochondria","Cyanobacteria"),
+              subtaxa=TRUE,invert=TRUE) %>% 
+  heat_tree(node_label=taxon_names,
+            node_label_max = 30,
+            node_size=round(Gills, digits = 3),
+            node_color=round(Gills, digits = 3),
+            node_color_digits = 4,
+            node_size_digits = 4,
+            tree_label="Gills",
+            node_label_size_range=c(0.018,0.06), 
+            node_size_range = c(0.007, 0.03), 
+            node_color_axis_label = "Read proportions")
+          
+```
+
+
+```{r}
+gilltree
+```
+
+
+```{r,fig.width=8,fig.height=8}
+ggarrange(plastictree,seaweedtree, skintree, gilltree,nrow = 2, ncol = 2,labels = c("a","b","c","d"))
+ggsave("ordertrees.tiff",dpi=300)
+```
+

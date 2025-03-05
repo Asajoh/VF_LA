@@ -1,0 +1,68 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+Shelters
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(message=FALSE, warning=FALSE, eval=FALSE, tidy.opts=list(width.cutoff=20), tidy=TRUE, wrap=TRUE)
+
+```
+
+```{r}
+shelterdat<-read_csv2("shelter.csv") %>% 
+  mutate(date = as.Date(date, format = "%d.%m.%Y")) %>% 
+  mutate(date2 = as.POSIXct(date, tz= "GMT")) %>% 
+  mutate(sheltertype = case_when(cage == 12 ~ "Seaweed",
+                                 cage == 7 ~ "Seaweed",
+                                 cage == 4 ~ "Seaweed",
+                                 cage == 1 ~ "Plastic",
+                                 cage == 3 ~ "Plastic",
+                                 cage == 8 ~ "Plastic")) %>% 
+  mutate(condition = as.ordered(condition*-1+4)) %>% 
+  mutate(pests = as.ordered(pests)) %>%
+  mutate(biofouling = as.ordered(biofouling*-1+4)) 
+```
+
+```{r}
+shelterbio <- shelterdat %>%
+  group_by(date, sheltertype, biofouling) %>%
+  summarise(n = n(), .groups = "drop") %>%  # Summarize counts
+  complete(date, sheltertype, biofouling, fill = list(n = 0)) %>%  # Fill missing levels
+  group_by(date, sheltertype) %>% 
+  mutate(percentage = n / sum(n)) %>%  # Recalculate percentages
+  ungroup() %>% 
+  mutate(date2 = as.POSIXct(date, tz= "GMT")) %>%
+  mutate(biofouling = fct_rev(biofouling))
+```
+
+```{r}
+ggplot(shelterbio, aes(x = date, y = percentage, fill = factor(biofouling))) +
+  geom_area(alpha=0.6 , size=1,color = "black") +
+  facet_wrap(~ sheltertype) +
+  scale_fill_manual(
+    name = "Biofouling",
+    values = c("#014636", "#01665E", "#2A9D8F", "#56B881", "#98D4C3"),
+    labels = c("3", "2.5", "2", "1.5", "1")
+  ) +
+  labs(
+    x = "Date",
+    y = "Proportion",
+    title = "Biofouling on plastic and seaweed shelters over time"
+  ) +
+  theme_classic() +
+  theme(
+    #strip.text = element_text(face = "bold"),
+    legend.position = "right"
+  )
+
+#ggsave("biofouling_green.png")
+
+```
+
+The biofouling model fails to converge when date is included, producing all NAs. Therefore, date was excluded from the analysis, and the difference between shelters was analysed alone.
+```{r}
+foulingmod<-clm(biofouling~sheltertype, data=shelterdat)
+summary(foulingmod)
+```
